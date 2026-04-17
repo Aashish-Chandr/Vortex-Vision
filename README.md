@@ -1,14 +1,10 @@
 <div align="center">
-
-<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=32&pause=1000&color=6C63FF&center=true&vCenter=true&width=600&lines=⚡+VortexVision;Real-Time+Video+Intelligence;Multimodal+%7C+Scalable+%7C+Production-Ready" alt="Typing SVG" />
-
-<br/>
-
-**Production-grade real-time multimodal video analytics platform.**  
+⚡ VortexVision
+Real-Time · Multimodal · Production-Ready
+Production-grade real-time video analytics platform.
 Detect objects · Track motion · Identify anomalies · Query in natural language — all over live video.
-
 <br/>
-
+  
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![Kafka](https://img.shields.io/badge/Apache%20Kafka-Streaming-231F20?style=for-the-badge&logo=apachekafka&logoColor=white)
