@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  namespace: vortexvision
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      initContainers:
+        - name: install-psycopg2
+          image: ghcr.io/mlflow/mlflow:v2.12.1
+          command: ["pip", "install", "psycopg2-binary"]
+      containers:
+        - name: mlflow
+          image: ghcr.io/mlflow/mlflow:v2.12.1
+          ports:
+            - containerPort: 5000
+          env:
+            - name: MLFLOW_BACKEND_STORE_URI
+              valueFrom:
+                secretKeyRef:
+                  name: vortexvision-secrets
+                  key: database-url
+          command:
+            - mlflow
+            - server
+            - --host=0.0.0.0
+            - --port=5000
+            - --backend-store-uri=$(MLFLOW_BACKEND_STORE_URI)
+            - --default-artifact-root=/mlflow/artifacts
+          volumeMounts:
+            - name: artifacts
+              mountPath: /mlflow/artifacts
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "2Gi"
+      volumes:
+        - name: artifacts
+          persistentVolumeClaim:
+            claimName: vortexvision-models-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+  namespace: vortexvision
+spec:
+  selector:
+    app: mlflow
+  ports:
+    - port: 5000
+      targetPort: 5000
+  type: ClusterIP

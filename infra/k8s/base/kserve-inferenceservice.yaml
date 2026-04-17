@@ -1,0 +1,31 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: vortexvision-anomaly
+  namespace: vortexvision
+  annotations:
+    serving.kserve.io/deploymentMode: Serverless
+spec:
+  predictor:
+    minReplicas: 1
+    maxReplicas: 10
+    pytorch:
+      storageUri: "s3://vortexvision-models/anomaly/autoencoder"
+      runtimeVersion: "2.1.0"
+      resources:
+        requests:
+          cpu: "1"
+          memory: "2Gi"
+          nvidia.com/gpu: "1"
+        limits:
+          cpu: "4"
+          memory: "8Gi"
+          nvidia.com/gpu: "1"
+  transformer:
+    containers:
+      - name: transformer
+        image: vortexvision/kserve-transformer:latest
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "256Mi"

@@ -1,0 +1,38 @@
+cluster_name: vortexvision-ray
+
+provider:
+  type: kubernetes
+  namespace: vortexvision
+  use_internal_ips: true
+
+head_node_type: head_node
+worker_node_types:
+  - name: gpu_worker
+    min_workers: 1
+    max_workers: 8
+    node_config:
+      resources:
+        CPU: 8
+        GPU: 1
+        memory: 16000000000
+
+head_node:
+  resources:
+    CPU: 4
+    memory: 8000000000
+
+docker:
+  image: vortexvision/ray:latest
+  container_name: ray_container
+  pull_before_run: true
+
+initialization_commands:
+  - pip install -r /app/requirements.txt
+
+setup_commands:
+  - echo "Ray cluster ready"
+
+head_setup_commands:
+  - serve start --http-host 0.0.0.0 --http-port 8000
+
+worker_setup_commands: []

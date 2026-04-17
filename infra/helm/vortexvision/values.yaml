@@ -1,0 +1,77 @@
+replicaCount:
+  api: 2
+  detector: 1
+  frontend: 2
+
+image:
+  registry: ghcr.io
+  repository: your-org/vortexvision
+  tag: latest
+  pullPolicy: IfNotPresent
+
+api:
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 70
+
+detector:
+  resources:
+    requests:
+      cpu: "1"
+      memory: 4Gi
+      nvidia.com/gpu: "1"
+    limits:
+      cpu: "4"
+      memory: 8Gi
+      nvidia.com/gpu: "1"
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 8
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: api.vortexvision.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: vortexvision-tls
+      hosts:
+        - api.vortexvision.example.com
+
+config:
+  yoloModel: yolo26n.pt
+  yoloDevice: cuda
+  vlmMode: api
+  logLevel: INFO
+
+postgresql:
+  enabled: true
+  auth:
+    database: vortexvision
+    username: vortex
+    existingSecret: vortexvision-secrets
+
+redis:
+  enabled: true
+  auth:
+    enabled: false
+
+monitoring:
+  serviceMonitor:
+    enabled: true
+    interval: 15s

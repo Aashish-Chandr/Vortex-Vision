@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vortexvision-api
+  namespace: vortexvision
+  labels:
+    app: vortexvision-api
+    version: "1.0.0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: vortexvision-api
+  template:
+    metadata:
+      labels:
+        app: vortexvision-api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: vortexvision
+      containers:
+        - name: api
+          image: vortexvision/api:latest
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: vortexvision-config
+          env:
+            - name: KAFKA_BOOTSTRAP
+              valueFrom:
+                secretKeyRef:
+                  name: vortexvision-secrets
+                  key: kafka-bootstrap
+            - name: API_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vortexvision-secrets
+                  key: api-secret-key
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: vortexvision-secrets
+                  key: database-url
+            - name: VLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vortexvision-secrets
+                  key: vlm-api-key
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://jaeger-collector:4317"
+          volumeMounts:
+            - name: models
+              mountPath: /data/models
+              readOnly: true
+            - name: clips
+              mountPath: /data/clips
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+          livenessProbe:
+            httpGet:
+              path: /health/
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: vortexvision-models-pvc
+        - name: clips
+          persistentVolumeClaim:
+            claimName: vortexvision-clips-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vortexvision-api
+  namespace: vortexvision
+  labels:
+    app: vortexvision-api
+spec:
+  selector:
+    app: vortexvision-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vortexvision
+  namespace: vortexvision

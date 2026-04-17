@@ -1,0 +1,40 @@
+groups:
+  - name: vortexvision.inference
+    interval: 15s
+    rules:
+      - alert: HighInferenceLatency
+        expr: histogram_quantile(0.95, rate(vortexvision_inference_duration_seconds_bucket[5m])) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P95 inference latency > 50ms"
+          description: "Stream {{ $labels.stream_id }} P95 latency is {{ $value | humanizeDuration }}"
+
+      - alert: DetectorDown
+        expr: up{job="vortexvision-detector"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Detector pod is down"
+
+      - alert: AnomalyRateSpike
+        expr: rate(vortexvision_anomaly_events_total[5m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High anomaly detection rate"
+          description: "{{ $value }} anomalies/sec on stream {{ $labels.stream_id }}"
+
+  - name: vortexvision.kafka
+    rules:
+      - alert: KafkaConsumerLag
+        expr: kafka_consumer_group_lag{group="detection-group"} > 1000
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Kafka consumer lag is high"
+          description: "Consumer lag: {{ $value }} messages"

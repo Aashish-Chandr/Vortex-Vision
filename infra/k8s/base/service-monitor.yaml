@@ -1,0 +1,32 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vortexvision-api-monitor
+  namespace: vortexvision
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: vortexvision-api
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vortexvision-detector-monitor
+  namespace: vortexvision
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: vortexvision-detector
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s

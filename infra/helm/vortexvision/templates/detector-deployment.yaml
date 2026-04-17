@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-detector
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "vortexvision.labels" . | nindent 4 }}
+    app: vortexvision-detector
+spec:
+  replicas: {{ .Values.replicaCount.detector }}
+  selector:
+    matchLabels:
+      app: vortexvision-detector
+  template:
+    metadata:
+      labels:
+        app: vortexvision-detector
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8001"
+    spec:
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: detector
+          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}/detector:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: metrics
+              containerPort: 8001
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-config
+          env:
+            - name: KAFKA_BOOTSTRAP
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: kafka-bootstrap
+          resources:
+            {{- toYaml .Values.detector.resources | nindent 12 }}
+{{- if .Values.detector.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Release.Name }}-detector-hpa
+  namespace: {{ .Release.Namespace }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Release.Name }}-detector
+  minReplicas: {{ .Values.detector.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.detector.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
+{{- end }}

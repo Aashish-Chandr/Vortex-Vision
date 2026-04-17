@@ -1,0 +1,19 @@
+VortexVision has been deployed!
+
+1. Get the API URL:
+   kubectl get ingress -n {{ .Release.Namespace }}
+
+2. Access the API docs:
+   https://{{ (index .Values.ingress.hosts 0).host }}/docs
+
+3. Check pod status:
+   kubectl get pods -n {{ .Release.Namespace }}
+
+4. View logs:
+   kubectl logs -n {{ .Release.Namespace }} -l app=vortexvision-api -f
+
+5. Seed demo data (from your local machine):
+   python scripts/seed_demo.py --kafka <kafka-external-endpoint>
+
+Grafana: http://grafana.{{ .Release.Namespace }}.svc:3000
+MLflow:  http://{{ .Release.Name }}-mlflow.{{ .Release.Namespace }}.svc:5000

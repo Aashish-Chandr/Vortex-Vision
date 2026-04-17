@@ -1,0 +1,2 @@
+# Trained model weights are stored here and tracked via DVC, not git.
+# Run: dvc pull  to download pre-trained weights.

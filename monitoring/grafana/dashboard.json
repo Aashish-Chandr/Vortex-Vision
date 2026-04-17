@@ -1,0 +1,182 @@
+{
+  "title": "VortexVision — Real-Time Analytics",
+  "uid": "vortexvision-main",
+  "schemaVersion": 38,
+  "refresh": "5s",
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "stream_id",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(vortexvision_stream_active, stream_id)",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".*"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Inference Latency P95 (ms)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "histogram_quantile(0.95, sum(rate(vortexvision_inference_duration_seconds_bucket{stream_id=~\"$stream_id\"}[1m])) by (le)) * 1000",
+        "legendFormat": "P95 latency ms"
+      }, {
+        "datasource": "Prometheus",
+        "expr": "histogram_quantile(0.50, sum(rate(vortexvision_inference_duration_seconds_bucket{stream_id=~\"$stream_id\"}[1m])) by (le)) * 1000",
+        "legendFormat": "P50 latency ms"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "yellow", "value": 30 },
+              { "color": "red", "value": 50 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Active Streams",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "count(vortexvision_stream_active == 1) or vector(0)",
+        "legendFormat": "Streams"
+      }],
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "green", "value": 0 }] } } }
+    },
+    {
+      "id": 3,
+      "title": "Frames / sec",
+      "type": "stat",
+      "gridPos": { "x": 16, "y": 0, "w": 4, "h": 4 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "sum(rate(vortexvision_frames_processed_total[1m]))",
+        "legendFormat": "fps"
+      }],
+      "fieldConfig": { "defaults": { "unit": "fps", "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "blue", "value": 0 }] } } }
+    },
+    {
+      "id": 4,
+      "title": "Total Anomaly Events",
+      "type": "stat",
+      "gridPos": { "x": 20, "y": 0, "w": 4, "h": 4 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "sum(vortexvision_anomaly_events_total)",
+        "legendFormat": "events"
+      }],
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "orange", "value": 0 }] } } }
+    },
+    {
+      "id": 5,
+      "title": "Anomaly Events / min by Type",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "sum(rate(vortexvision_anomaly_events_total[1m])) by (anomaly_type) * 60",
+        "legendFormat": "{{ anomaly_type }}"
+      }],
+      "fieldConfig": { "defaults": { "unit": "short" } }
+    },
+    {
+      "id": 6,
+      "title": "API Request Rate",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "sum(rate(vortexvision_api_requests_total[1m])) by (method, endpoint)",
+        "legendFormat": "{{ method }} {{ endpoint }}"
+      }],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "id": 7,
+      "title": "API P95 Latency by Endpoint (ms)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "histogram_quantile(0.95, sum(rate(vortexvision_api_request_duration_seconds_bucket[1m])) by (le, endpoint)) * 1000",
+        "legendFormat": "{{ endpoint }}"
+      }],
+      "fieldConfig": { "defaults": { "unit": "ms" } }
+    },
+    {
+      "id": 8,
+      "title": "API Error Rate",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "sum(rate(vortexvision_api_requests_total{status_code=~\"5..\"}[1m])) / sum(rate(vortexvision_api_requests_total[1m])) * 100",
+        "legendFormat": "Error %"
+      }],
+      "fieldConfig": { "defaults": { "unit": "percent", "thresholds": { "steps": [{ "color": "green", "value": 0 }, { "color": "red", "value": 1 }] } } }
+    },
+    {
+      "id": 9,
+      "title": "Kafka Consumer Lag (estimated)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "vortexvision_kafka_consumer_lag",
+        "legendFormat": "consumer lag"
+      }],
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "steps": [{ "color": "green", "value": 0 }, { "color": "yellow", "value": 100 }, { "color": "red", "value": 1000 }] } } }
+    },
+    {
+      "id": 10,
+      "title": "Node CPU Usage %",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 20, "w": 12, "h": 8 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[1m])) * 100)",
+        "legendFormat": "{{ instance }}"
+      }],
+      "fieldConfig": { "defaults": { "unit": "percent", "max": 100 } }
+    },
+    {
+      "id": 11,
+      "title": "Node Memory Usage %",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 32, "w": 12, "h": 8 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+        "legendFormat": "Memory used %"
+      }],
+      "fieldConfig": { "defaults": { "unit": "percent", "max": 100 } }
+    },
+    {
+      "id": 12,
+      "title": "Frames Processed Total",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 28, "w": 12, "h": 8 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "sum(rate(vortexvision_frames_processed_total[1m])) by (stream_id)",
+        "legendFormat": "{{ stream_id }}"
+      }],
+      "fieldConfig": { "defaults": { "unit": "fps" } }
+    }
+  ]
+}

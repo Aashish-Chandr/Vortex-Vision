@@ -1,0 +1,15 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vortexvision-api
+  namespace: vortexvision
+spec:
+  replicas: 4
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vortexvision-detector
+  namespace: vortexvision
+spec:
+  replicas: 3

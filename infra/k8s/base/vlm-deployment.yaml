@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vlm-service
+  namespace: vortexvision
+  labels:
+    app: vlm-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vlm-service
+  template:
+    metadata:
+      labels:
+        app: vlm-service
+    spec:
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: vlm
+          image: vortexvision/vlm:latest
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: MODEL_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: vortexvision-config
+                  key: VLM_MODEL
+            - name: PORT
+              value: "8080"
+          volumeMounts:
+            - name: vlm-models
+              mountPath: /models
+          resources:
+            requests:
+              cpu: "2"
+              memory: "16Gi"
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "8"
+              memory: "32Gi"
+              nvidia.com/gpu: "1"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 120
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /v1/models
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 15
+      volumes:
+        - name: vlm-models
+          persistentVolumeClaim:
+            claimName: vortexvision-models-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vlm-service
+  namespace: vortexvision
+spec:
+  selector:
+    app: vlm-service
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP

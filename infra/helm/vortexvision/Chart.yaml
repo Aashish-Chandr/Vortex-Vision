@@ -1,0 +1,22 @@
+apiVersion: v2
+name: vortexvision
+description: Real-time multimodal video analytics platform
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - video-analytics
+  - computer-vision
+  - anomaly-detection
+  - mlops
+maintainers:
+  - name: VortexVision Team
+dependencies:
+  - name: postgresql
+    version: "15.x.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+  - name: redis
+    version: "19.x.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled

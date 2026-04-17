@@ -1,0 +1,64 @@
+name: Retrain Pipeline
+
+on:
+  # Triggered by Evidently drift detection webhook or manually
+  workflow_dispatch:
+    inputs:
+      drift_score:
+        description: "Drift score that triggered retraining"
+        required: false
+        default: "0.0"
+  schedule:
+    # Weekly retraining every Sunday at 2am UTC
+    - cron: "0 2 * * 0"
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install -r requirements.txt dvc[s3] kfp
+
+      - name: Pull latest data
+        run: dvc pull
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Run DVC pipeline
+        run: dvc repro
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Push updated models
+        run: dvc push
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Commit DVC lock file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add mlops/dvc.lock metrics/
+          git diff --staged --quiet || git commit -m "mlops: retrain pipeline run $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push
+
+      - name: Trigger deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'ci.yml',
+              ref: 'main'
+            })

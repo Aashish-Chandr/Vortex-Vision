@@ -1,0 +1,72 @@
+stages:
+  prepare_data:
+    cmd: python mlops/prepare_data.py --raw-dir data/raw --out-dir data/processed
+    deps:
+      - mlops/prepare_data.py
+      - data/raw
+    outs:
+      - data/processed/train
+      - data/processed/val
+      - data/processed/test
+      - data/processed/normal_frames
+    metrics:
+      - data/processed/train_index.csv:
+          cache: false
+
+  extract_features:
+    cmd: >
+      python mlops/extract_features.py --data-dir data/processed/train --out-dir data/processed/sequences/train &&
+      python mlops/extract_features.py --data-dir data/processed/val   --out-dir data/processed/sequences/val
+    deps:
+      - mlops/extract_features.py
+      - anomaly/transformer_detector.py
+      - detection/detector.py
+      - data/processed/train
+      - data/processed/val
+    outs:
+      - data/processed/sequences
+
+  train_autoencoder:
+    cmd: python mlops/train.py --data-dir data/processed/normal_frames --epochs 50
+    deps:
+      - mlops/train.py
+      - mlops/dataset.py
+      - anomaly/autoencoder.py
+      - data/processed/normal_frames
+    outs:
+      - models/autoencoder_best.pt
+    metrics:
+      - metrics/autoencoder_metrics.json:
+          cache: false
+
+  train_transformer:
+    cmd: python mlops/train_transformer.py --data-dir data/processed/sequences/train --epochs 30
+    deps:
+      - mlops/train_transformer.py
+      - anomaly/transformer_detector.py
+      - data/processed/sequences/train
+    outs:
+      - models/transformer_best.pt
+    metrics:
+      - metrics/transformer_metrics.json:
+          cache: false
+
+  evaluate:
+    cmd: python mlops/evaluate.py --model-dir models --data-dir data/processed/test
+    deps:
+      - mlops/evaluate.py
+      - models/autoencoder_best.pt
+      - models/transformer_best.pt
+      - data/processed/test
+    metrics:
+      - metrics/eval_results.json:
+          cache: false
+
+  export_models:
+    cmd: python mlops/model_export.py --model-dir models --out-dir models/exported
+    deps:
+      - mlops/model_export.py
+      - models/autoencoder_best.pt
+      - models/transformer_best.pt
+    outs:
+      - models/exported

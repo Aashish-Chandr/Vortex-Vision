@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "vortexvision.labels" . | nindent 4 }}
+data:
+  YOLO_MODEL: {{ .Values.config.yoloModel | quote }}
+  YOLO_DEVICE: {{ .Values.config.yoloDevice | quote }}
+  VLM_MODE: {{ .Values.config.vlmMode | quote }}
+  VLM_MODEL: {{ .Values.config.vlmModel | quote }}
+  VLM_API_BASE: "http://{{ .Release.Name }}-vlm:8080/v1"
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  KAFKA_FRAMES_TOPIC: "video-frames"
+  KAFKA_ANNOTATED_TOPIC: "annotated-frames"
+  KAFKA_EVENTS_TOPIC: "anomaly-events"
+  KAFKA_CONSUMER_GROUP: "detection-group"
+  MODEL_STORAGE_PATH: "/data/models"
+  CLIP_STORAGE_PATH: "/data/clips"
+  MLFLOW_TRACKING_URI: "http://{{ .Release.Name }}-mlflow:5000"

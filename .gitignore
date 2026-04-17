@@ -1,0 +1,49 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+.venv/
+venv/
+
+# Model weights (tracked via DVC)
+*.pt
+*.onnx
+*.engine
+*.trt
+models/*
+!models/.gitkeep
+
+# Data (tracked via DVC)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/
+data/sequences/
+
+# Metrics output (committed after pipeline runs)
+# metrics/ is tracked — do NOT ignore it
+
+# MLflow
+mlflow.db
+mlruns/
+
+# DVC internals
+.dvc/cache/
+.dvc/tmp/
+.dvc/plots/
+
+# Build artifacts
+*.egg-info/
+dist/
+build/
+
+# Test artifacts
+.coverage
+coverage.xml
+htmlcov/
+test.db
+vortexvision_pipeline.yaml
+
+# IDE
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
