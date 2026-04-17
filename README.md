@@ -1,11 +1,8 @@
 <div align="center">
-# ⚡ VortexVision
- 
-### Real-Time · Multimodal · Production-Ready
- 
-**Production-grade real-time video analytics platform.**  
-Detect objects · Track motion · Identify anomalies · Query in natural language — all over live video.
- 
+<h1>⚡ VortexVision</h1>
+<h3>Real-Time &nbsp;·&nbsp; Multimodal &nbsp;·&nbsp; Production-Ready</h3>
+<p>Production-grade real-time video analytics platform.<br/>
+Detect objects &nbsp;·&nbsp; Track motion &nbsp;·&nbsp; Identify anomalies &nbsp;·&nbsp; Query in natural language — all over live video.</p>
 <br/>
   
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
