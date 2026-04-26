@@ -25,13 +25,13 @@ jobs:
           cache: pip
 
       - name: Install linters
-        run: pip install "ruff==0.4.10" "black==24.4.2"
+        run: pip install "ruff==0.4.10"
 
-      - name: Ruff check
+      - name: Ruff lint check
         run: ruff check api/ anomaly/ config/ detection/ ingestion/ vlm/ mlops/ monitoring/
 
-      - name: Black format check
-        run: black --check api/ anomaly/ config/ detection/ ingestion/ vlm/ mlops/ monitoring/
+      - name: Ruff format check
+        run: ruff format --check api/ anomaly/ config/ detection/ ingestion/ vlm/ mlops/ monitoring/
 
   # ── Security ──────────────────────────────────────────────────────────────────
   security:
