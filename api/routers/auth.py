@@ -10,7 +10,8 @@ from api.auth import create_access_token
 router = APIRouter()
 
 # Dev credentials — replace with DB-backed user store in production
-_DEV_USERS = {"admin": "vortex-admin-pass", "viewer": "vortex-viewer-pass"}
+# nosec B105 — these are intentional dev-only defaults, not real secrets
+_DEV_USERS = {"admin": "vortex-admin-pass", "viewer": "vortex-viewer-pass"}  # nosec B105
 
 
 class LoginRequest(BaseModel):

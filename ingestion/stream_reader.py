@@ -2,11 +2,12 @@
 Stream reader: pulls frames from RTSP/YouTube/file sources and publishes to Kafka.
 Supports RTSP, HTTP streams, local files, and YouTube URLs (via yt-dlp).
 """
-import cv2
-import time
 import logging
-from dataclasses import dataclass, field
+import time
+from dataclasses import dataclass
 from typing import Optional
+
+import cv2
 from confluent_kafka import Producer
 
 logger = logging.getLogger(__name__)

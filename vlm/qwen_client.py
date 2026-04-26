@@ -4,9 +4,9 @@ and natural language querying over video content.
 """
 import base64
 import logging
+from typing import List, Optional
+
 import numpy as np
-from typing import List, Optional, Union
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 

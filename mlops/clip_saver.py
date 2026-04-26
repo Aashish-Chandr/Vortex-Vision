@@ -2,9 +2,7 @@
 Clip saver: buffers frames around anomaly events and saves them as MP4 clips.
 Supports local filesystem and S3 upload.
 """
-import io
 import logging
-import os
 import time
 from collections import deque
 from pathlib import Path

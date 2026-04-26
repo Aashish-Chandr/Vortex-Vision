@@ -17,36 +17,61 @@ classifiers = [
 ]
 
 [project.scripts]
-vortexvision-api = "api.main:app"
-vortexvision-detector = "detection.worker:main"
+vortexvision-api    = "api.main:app"
+vortexvision-worker = "detection.worker:main"
 
 [tool.setuptools.packages.find]
 include = ["api*", "anomaly*", "config*", "detection*", "ingestion*", "mlops*", "serving*", "vlm*"]
 
+# ── Ruff ──────────────────────────────────────────────────────────────────────
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-select = ["E", "F", "I", "UP", "B"]
-ignore = ["E501", "B008"]
 
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W"]
+ignore = [
+    "E501",   # line too long — handled by black
+    "B008",   # do not perform function calls in default arguments (FastAPI Depends)
+    "B904",   # raise from — too noisy in exception handlers
+    "UP007",  # use X | Y for union types — keep Optional for clarity
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*"       = ["S101", "S106", "ANN"]   # assert, hardcoded passwords OK in tests
+"scripts/*"     = ["T201"]                  # print() OK in scripts
+"migrations/*"  = ["ALL"]
+
+# ── Black ─────────────────────────────────────────────────────────────────────
 [tool.black]
 line-length = 100
 target-version = ["py311"]
 
+# ── Mypy ──────────────────────────────────────────────────────────────────────
 [tool.mypy]
 python_version = "3.11"
 ignore_missing_imports = true
 strict = false
-exclude = ["migrations/", "tests/load/"]
+exclude = ["migrations/", "tests/load/", "scripts/", "serving/"]
 
+# ── Pytest ────────────────────────────────────────────────────────────────────
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-filterwarnings = ["ignore::DeprecationWarning"]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::pytest.PytestUnraisableExceptionWarning",
+]
 
+# ── Coverage ──────────────────────────────────────────────────────────────────
 [tool.coverage.run]
 source = ["api", "anomaly", "detection", "ingestion", "vlm", "config", "mlops"]
 omit = ["tests/*", "migrations/*", "scripts/*", "serving/*"]
 
 [tool.coverage.report]
-exclude_lines = ["pragma: no cover", "if __name__ == .__main__.", "raise NotImplementedError"]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]

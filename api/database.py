@@ -3,7 +3,6 @@ SQLAlchemy async database setup.
 Stores streams, anomaly events, and query history persistently.
 Engine is created lazily so test env vars set before import take effect.
 """
-import os
 from datetime import datetime
 from typing import AsyncGenerator
 
@@ -54,18 +53,7 @@ def _get_session_factory():
     return _session_factory
 
 
-# Expose for direct use (e.g. in tests that need to reset)
-@property
-def engine():
-    return _get_engine()
-
-
-@property
-def AsyncSessionLocal():
-    return _get_session_factory()
-
-
-# Module-level aliases used by other modules
+# Public aliases
 def get_engine():
     return _get_engine()
 

@@ -1,6 +1,7 @@
 """
 FastAPI middleware: request logging, rate limiting, error handling, metrics.
 """
+import asyncio
 import logging
 import time
 import uuid
@@ -110,8 +111,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
     async def _check_redis(self, client_ip: str) -> bool:
-        import asyncio
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         try:
             key = f"rl:{client_ip}"
             pipe = self._redis.pipeline()
@@ -124,7 +124,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             results = await loop.run_in_executor(None, pipe.execute)
             count = results[2]
             return count <= self.rpm
-        except Exception:
+        except Exception:  # noqa: BLE001
             return True  # fail open
 
     def _check_local(self, client_ip: str) -> bool:
