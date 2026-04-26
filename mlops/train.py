@@ -3,16 +3,17 @@ Training pipeline for anomaly detection models.
 Tracked with MLflow. Data versioned with DVC.
 """
 import argparse
+import json
 import logging
+from pathlib import Path
+
 import mlflow
 import mlflow.pytorch
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
-from pathlib import Path
 
 from anomaly.autoencoder import ConvAutoencoder
-from anomaly.transformer_detector import TemporalTransformer
 from mlops.dataset import AnomalyDataset
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,7 @@ def train_autoencoder(
         best_val_loss = float("inf")
         Path("models").mkdir(parents=True, exist_ok=True)
         Path("metrics").mkdir(parents=True, exist_ok=True)
+
         for epoch in range(epochs):
             model.train()
             train_loss = 0.0
@@ -71,7 +73,9 @@ def train_autoencoder(
             val_loss /= len(val_loader)
 
             mlflow.log_metrics({"train_loss": train_loss, "val_loss": val_loss}, step=epoch)
-            logger.info("Epoch %d/%d — train: %.4f  val: %.4f", epoch + 1, epochs, train_loss, val_loss)
+            logger.info(
+                "Epoch %d/%d — train: %.4f  val: %.4f", epoch + 1, epochs, train_loss, val_loss
+            )
 
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
@@ -79,8 +83,6 @@ def train_autoencoder(
                 torch.save(model.state_dict(), "models/autoencoder_best.pt")
 
         mlflow.log_metric("best_val_loss", best_val_loss)
-        import json
-        Path("metrics").mkdir(parents=True, exist_ok=True)
         with open("metrics/autoencoder_metrics.json", "w") as f:
             json.dump({"best_val_loss": best_val_loss}, f)
         logger.info("Training complete. Best val loss: %.4f", best_val_loss)
