@@ -12,20 +12,18 @@ import torch.nn as nn
 class ConvAutoencoder(nn.Module):
     def __init__(self, latent_dim: int = 256):
         super().__init__()
-        # Encoder
         self.encoder = nn.Sequential(
-            nn.Conv2d(3, 32, 3, stride=2, padding=1),   # 320x320
+            nn.Conv2d(3, 32, 3, stride=2, padding=1),
             nn.ReLU(),
-            nn.Conv2d(32, 64, 3, stride=2, padding=1),  # 160x160
+            nn.Conv2d(32, 64, 3, stride=2, padding=1),
             nn.ReLU(),
-            nn.Conv2d(64, 128, 3, stride=2, padding=1), # 80x80
+            nn.Conv2d(64, 128, 3, stride=2, padding=1),
             nn.ReLU(),
-            nn.Conv2d(128, 256, 3, stride=2, padding=1),# 40x40
+            nn.Conv2d(128, 256, 3, stride=2, padding=1),
             nn.ReLU(),
             nn.Flatten(),
             nn.Linear(256 * 40 * 40, latent_dim),
         )
-        # Decoder
         self.decoder_fc = nn.Linear(latent_dim, 256 * 40 * 40)
         self.decoder = nn.Sequential(
             nn.ConvTranspose2d(256, 128, 3, stride=2, padding=1, output_padding=1),
@@ -58,9 +56,8 @@ class AnomalyScorer:
         import torchvision.transforms.functional as TF
         from PIL import Image
 
-        img = Image.fromarray(frame[..., ::-1])  # BGR -> RGB
+        img = Image.fromarray(frame[..., ::-1])
         tensor = TF.to_tensor(TF.resize(img, [640, 640])).unsqueeze(0).to(self.device)
-
         x_hat, _ = self.model(tensor)
         score = nn.functional.mse_loss(x_hat, tensor).item()
         return score, score > self.threshold

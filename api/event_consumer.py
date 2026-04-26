@@ -1,7 +1,6 @@
 """
 Background Kafka consumer that reads anomaly-events topic and persists
 them to the database + pushes to the in-memory alert queue.
-Runs as an asyncio task inside the FastAPI process.
 """
 import asyncio
 import json
@@ -14,13 +13,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def consume_events(state: "AppState"):
-    """
-    Long-running async task: polls Kafka for anomaly events,
-    writes to DB, and pushes to the WebSocket alert queue.
-    """
-    from config.settings import get_settings
+async def consume_events(state: "AppState") -> None:
+    """Polls Kafka for anomaly events, writes to DB, pushes to alert queue."""
     from api.database import AnomalyEventRecord, get_session_factory
+    from config.settings import get_settings
 
     settings = get_settings()
 
@@ -30,21 +26,25 @@ async def consume_events(state: "AppState"):
         logger.warning("confluent-kafka not installed — event consumer disabled")
         return
 
-    consumer = Consumer({
-        "bootstrap.servers": settings.kafka_bootstrap,
-        "group.id": "api-event-consumer",
-        "auto.offset.reset": "latest",
-        "enable.auto.commit": True,
-    })
+    consumer = Consumer(
+        {
+            "bootstrap.servers": settings.kafka_bootstrap,
+            "group.id": "api-event-consumer",
+            "auto.offset.reset": "latest",
+            "enable.auto.commit": True,
+        }
+    )
     consumer.subscribe([settings.kafka_events_topic])
     logger.info("Event consumer subscribed to '%s'", settings.kafka_events_topic)
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
+
+    def _poll():
+        return consumer.poll(timeout=0.5)
 
     try:
         while True:
-            # Poll in executor to avoid blocking the event loop
-            msg = await loop.run_in_executor(None, lambda: consumer.poll(timeout=0.5))
+            msg = await loop.run_in_executor(None, _poll)
 
             if msg is None:
                 await asyncio.sleep(0.01)
@@ -56,11 +56,10 @@ async def consume_events(state: "AppState"):
 
             try:
                 payload = json.loads(msg.value().decode("utf-8"))
-            except Exception as e:
-                logger.error("Failed to decode event payload: %s", e)
+            except Exception as exc:
+                logger.error("Failed to decode event payload: %s", exc)
                 continue
 
-            # Persist to DB
             try:
                 async with get_session_factory()() as session:
                     record = AnomalyEventRecord(
@@ -76,10 +75,9 @@ async def consume_events(state: "AppState"):
                     )
                     session.add(record)
                     await session.commit()
-            except Exception as e:
-                logger.error("Failed to persist event to DB: %s", e)
+            except Exception as exc:
+                logger.error("Failed to persist event to DB: %s", exc)
 
-            # Push to in-memory alert queue for WebSocket broadcast
             state.push_event(payload)
 
     except asyncio.CancelledError:

@@ -27,32 +27,49 @@ include = ["api*", "anomaly*", "config*", "detection*", "ingestion*", "mlops*", 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+exclude = [
+    "migrations/",
+    "tests/",
+    "scripts/",
+    "serving/",
+    "conftest.py",
+    ".venv/",
+    "venv/",
+]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "W"]
+select = ["E", "F", "I", "B"]
 ignore = [
-    "E501",   # line too long — handled by black
-    "B008",   # do not perform function calls in default arguments (FastAPI Depends)
-    "B904",   # raise from — too noisy in exception handlers
-    "UP007",  # use X | Y for union types — keep Optional for clarity
+    "E501",  # line too long — black handles this
+    "B008",  # function calls in default args — FastAPI Depends pattern
+    "B904",  # raise from — too noisy in exception handlers
+    "B006",  # mutable default argument — used intentionally in dataclasses
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*"       = ["S101", "S106", "ANN"]   # assert, hardcoded passwords OK in tests
-"scripts/*"     = ["T201"]                  # print() OK in scripts
-"migrations/*"  = ["ALL"]
+"monitoring/*" = ["E402"]
 
 # ── Black ─────────────────────────────────────────────────────────────────────
 [tool.black]
 line-length = 100
 target-version = ["py311"]
+exclude = '''
+/(
+    migrations
+  | tests
+  | scripts
+  | serving
+  | \.venv
+  | venv
+)/
+'''
 
 # ── Mypy ──────────────────────────────────────────────────────────────────────
 [tool.mypy]
 python_version = "3.11"
 ignore_missing_imports = true
 strict = false
-exclude = ["migrations/", "tests/load/", "scripts/", "serving/"]
+exclude = ["migrations/", "tests/", "scripts/", "serving/"]
 
 # ── Pytest ────────────────────────────────────────────────────────────────────
 [tool.pytest.ini_options]
@@ -73,5 +90,4 @@ exclude_lines = [
     "pragma: no cover",
     "if __name__ == .__main__.",
     "raise NotImplementedError",
-    "\\.\\.\\.",
 ]

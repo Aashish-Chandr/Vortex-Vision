@@ -1,28 +1,34 @@
 """
 Transformer-based temporal anomaly detector.
-Operates on sequences of detection embeddings to catch behavioral anomalies
-(crowd rush, fight, accident) that span multiple frames.
+Operates on sequences of detection embeddings to catch behavioral anomalies.
 """
-import torch
-import torch.nn as nn
-import numpy as np
 from collections import deque
 from typing import List, Tuple
+
+import numpy as np
+import torch
+import torch.nn as nn
+
 from detection.detector import DetectionResult
 
 
 class TemporalTransformer(nn.Module):
     """
     Encodes a sequence of frame-level feature vectors and predicts anomaly probability.
-    Input: (batch, seq_len, feature_dim)
-    Output: (batch, 1) anomaly probability
+    Input: (batch, seq_len, feature_dim) — Output: (batch, 1)
     """
 
-    def __init__(self, feature_dim: int = 128, seq_len: int = 16, nhead: int = 4, num_layers: int = 2):
+    def __init__(
+        self, feature_dim: int = 128, seq_len: int = 16, nhead: int = 4, num_layers: int = 2
+    ):
         super().__init__()
         self.pos_embedding = nn.Embedding(seq_len, feature_dim)
         encoder_layer = nn.TransformerEncoderLayer(
-            d_model=feature_dim, nhead=nhead, dim_feedforward=256, dropout=0.1, batch_first=True
+            d_model=feature_dim,
+            nhead=nhead,
+            dim_feedforward=256,
+            dropout=0.1,
+            batch_first=True,
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
         self.classifier = nn.Sequential(
@@ -41,16 +47,13 @@ class TemporalTransformer(nn.Module):
 
 
 def detections_to_feature(result: DetectionResult, feature_dim: int = 128) -> np.ndarray:
-    """
-    Converts a DetectionResult into a fixed-size feature vector.
-    Encodes: object counts per class, average confidence, spatial density.
-    """
+    """Converts a DetectionResult into a fixed-size feature vector."""
     feat = np.zeros(feature_dim, dtype=np.float32)
     if not result.detections:
         return feat
 
-    feat[0] = len(result.detections) / 50.0  # normalized count
-    feat[1] = np.mean([d.confidence for d in result.detections])
+    feat[0] = len(result.detections) / 50.0
+    feat[1] = float(np.mean([d.confidence for d in result.detections]))
 
     for i, det in enumerate(result.detections[:20]):
         base = 2 + i * 6

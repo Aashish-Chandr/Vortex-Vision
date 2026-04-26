@@ -2,19 +2,22 @@
 Natural language query engine over indexed video events.
 Example: "Show me all red cars speeding in the last 5 minutes"
 """
-import time
 import logging
-import numpy as np
-from typing import List, Optional
+import time
 from dataclasses import dataclass, field
-from vlm.qwen_client import QwenVLClient
+from typing import List, Optional
+
+import numpy as np
+
 from anomaly.event_types import AnomalyEvent
+from vlm.qwen_client import QwenVLClient
 
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = (
     "You are a video surveillance analyst. You are given frames from a security camera. "
-    "Answer questions precisely about what you observe. Include timestamps and object details when relevant."
+    "Answer questions precisely about what you observe. "
+    "Include timestamps and object details when relevant."
 )
 
 
@@ -37,16 +40,14 @@ class QueryResult:
 
 
 class NLQueryEngine:
-    """
-    Indexes video clips and answers natural language queries using Qwen VLM.
-    """
+    """Indexes video clips and answers natural language queries using Qwen VLM."""
 
     def __init__(self, vlm_client: QwenVLClient, clip_window_seconds: float = 10.0):
         self.vlm = vlm_client
         self.clip_window = clip_window_seconds
         self._clips: List[VideoClip] = []
 
-    def index_clip(self, clip: VideoClip):
+    def index_clip(self, clip: VideoClip) -> None:
         """Add a clip to the searchable index."""
         if clip.frames:
             clip.description = self.vlm.query_frames(
@@ -58,9 +59,7 @@ class NLQueryEngine:
         logger.debug("Indexed clip from stream %s at t=%.1f", clip.stream_id, clip.start_time)
 
     def query(self, question: str, time_window_seconds: Optional[float] = None) -> QueryResult:
-        """
-        Answer a natural language question, optionally filtering to recent clips.
-        """
+        """Answer a natural language question, optionally filtering to recent clips."""
         t0 = time.monotonic()
         now = time.time()
 
@@ -77,8 +76,7 @@ class NLQueryEngine:
                 processing_ms=(time.monotonic() - t0) * 1000,
             )
 
-        # Gather representative frames from candidates
-        sample_frames = []
+        sample_frames: List[np.ndarray] = []
         for clip in candidates[:5]:
             sample_frames.extend(clip.frames[:2])
 

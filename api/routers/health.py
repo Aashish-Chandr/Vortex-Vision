@@ -1,8 +1,9 @@
 """
 Health check endpoints: liveness, readiness, and deep component health.
 """
-import time
 import os
+import time
+
 from fastapi import APIRouter, Request
 
 router = APIRouter()
@@ -30,21 +31,21 @@ async def deep_health(request: Request):
     if state is None:
         return {"status": "degraded", "components": {}}
 
-    # Check DB connectivity
     db_ok = False
     try:
         from api.database import get_session_factory
         from sqlalchemy import text
+
         async with get_session_factory()() as session:
             await session.execute(text("SELECT 1"))
         db_ok = True
     except Exception:
         pass
 
-    # Check tracing
     tracing_ok = False
     try:
         from opentelemetry import trace
+
         tracing_ok = trace.get_tracer_provider().__class__.__name__ != "ProxyTracerProvider"
     except Exception:
         pass
@@ -58,10 +59,9 @@ async def deep_health(request: Request):
         "database": db_ok,
         "tracing": tracing_ok,
     }
-    all_critical_ok = components["database"]
     load_errors = getattr(state, "load_errors", {})
     return {
-        "status": "healthy" if all_critical_ok else "degraded",
+        "status": "healthy" if components["database"] else "degraded",
         "components": components,
         "load_errors": load_errors,
         "timestamp": time.time(),

@@ -6,6 +6,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import RequireAuth
@@ -35,14 +36,15 @@ async def natural_language_query(
 ):
     state = request.app.state.vv
     if state.nl_engine is None:
-        raise HTTPException(503, "VLM query engine not ready. Check VLM_MODE and VLM_API_BASE settings.")
+        raise HTTPException(
+            503, "VLM query engine not ready. Check VLM_MODE and VLM_API_BASE settings."
+        )
 
     result = state.nl_engine.query(
         question=req.question,
         time_window_seconds=req.time_window_seconds,
     )
 
-    # Persist query history
     record = QueryHistoryRecord(
         question=result.query,
         answer=result.answer,
@@ -62,10 +64,18 @@ async def natural_language_query(
 
 @router.get("/history")
 async def query_history(limit: int = 20, db: AsyncSession = Depends(get_db)):
-    from sqlalchemy import desc, select
     result = await db.execute(
-        select(QueryHistoryRecord).order_by(desc(QueryHistoryRecord.created_at)).limit(limit)
+        select(QueryHistoryRecord)
+        .order_by(desc(QueryHistoryRecord.created_at))
+        .limit(limit)
     )
     rows = result.scalars().all()
-    return [{"question": r.question, "answer": r.answer, "clips_found": r.clips_found,
-             "processing_ms": r.processing_ms} for r in rows]
+    return [
+        {
+            "question": r.question,
+            "answer": r.answer,
+            "clips_found": r.clips_found,
+            "processing_ms": r.processing_ms,
+        }
+        for r in rows
+    ]

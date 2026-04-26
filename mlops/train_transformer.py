@@ -1,11 +1,9 @@
 """
 Training pipeline for the TemporalTransformer behavioral anomaly detector.
-Operates on sequences of detection feature vectors.
 Tracked with MLflow.
 """
 import argparse
 import logging
-import os
 from pathlib import Path
 
 import mlflow
@@ -15,20 +13,16 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset, random_split
 
-from anomaly.transformer_detector import TemporalTransformer, detections_to_feature
-from detection.detector import DetectionResult, Detection
+from anomaly.transformer_detector import TemporalTransformer
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 
 class SequenceDataset(Dataset):
-    """
-    Loads pre-extracted feature sequences from .npy files.
-    Each file: (seq_len, feature_dim) float32 array + label (0/1).
-    """
+    """Loads pre-extracted .npy feature sequences for transformer training."""
 
-    def __init__(self, data_dir: str, seq_len: int = 16, feature_dim: int = 128):
+    def __init__(self, data_dir: str, seq_len: int = 16, feature_dim: int = 128) -> None:
         self.seq_len = seq_len
         self.feature_dim = feature_dim
         self.samples: list[tuple[np.ndarray, int]] = []
@@ -37,7 +31,6 @@ class SequenceDataset(Dataset):
         for label, subdir in [(0, "normal"), (1, "anomaly")]:
             for npy_file in sorted((root / subdir).glob("*.npy")):
                 seq = np.load(str(npy_file)).astype(np.float32)
-                # Pad or truncate to seq_len
                 if len(seq) >= seq_len:
                     seq = seq[:seq_len]
                 else:
@@ -45,10 +38,10 @@ class SequenceDataset(Dataset):
                     seq = np.vstack([seq, pad])
                 self.samples.append((seq, label))
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.samples)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int):
         seq, label = self.samples[idx]
         return torch.tensor(seq), torch.tensor(label, dtype=torch.float32)
 
@@ -62,7 +55,7 @@ def train_transformer(
     feature_dim: int = 128,
     device: str = "cuda",
     experiment_name: str = "vortexvision-transformer",
-):
+) -> None:
     mlflow.set_experiment(experiment_name)
 
     with mlflow.start_run():
@@ -73,7 +66,7 @@ def train_transformer(
 
         dataset = SequenceDataset(data_dir, seq_len=seq_len, feature_dim=feature_dim)
         if len(dataset) == 0:
-            logger.error("No sequence data found in %s. Run feature extraction first.", data_dir)
+            logger.error("No sequence data in %s. Run extract_features first.", data_dir)
             return
 
         train_size = int(0.85 * len(dataset))
@@ -107,8 +100,8 @@ def train_transformer(
                 total += len(labels)
 
             scheduler.step()
-            train_acc = correct / total
             train_loss /= len(train_loader)
+            train_acc = correct / total
 
             model.eval()
             val_loss, val_correct, val_total = 0.0, 0, 0
@@ -123,12 +116,15 @@ def train_transformer(
             val_loss /= len(val_loader)
             val_acc = val_correct / val_total
 
-            mlflow.log_metrics({
-                "train_loss": train_loss, "val_loss": val_loss,
-                "train_acc": train_acc, "val_acc": val_acc,
-            }, step=epoch)
-            logger.info("Epoch %d/%d — train_loss=%.4f acc=%.3f | val_loss=%.4f acc=%.3f",
-                        epoch + 1, epochs, train_loss, train_acc, val_loss, val_acc)
+            mlflow.log_metrics(
+                {"train_loss": train_loss, "val_loss": val_loss,
+                 "train_acc": train_acc, "val_acc": val_acc},
+                step=epoch,
+            )
+            logger.info(
+                "Epoch %d/%d — train_loss=%.4f acc=%.3f | val_loss=%.4f acc=%.3f",
+                epoch + 1, epochs, train_loss, train_acc, val_loss, val_acc,
+            )
 
             if val_loss < best_val_loss:
                 best_val_loss = val_loss

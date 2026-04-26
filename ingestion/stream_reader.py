@@ -5,7 +5,6 @@ Supports RTSP, HTTP streams, local files, and YouTube URLs (via yt-dlp).
 import logging
 import time
 from dataclasses import dataclass
-from typing import Optional
 
 import cv2
 from confluent_kafka import Producer

@@ -1,22 +1,24 @@
 """
-Feature extraction pipeline: runs YOLO26 on processed frames and saves
+Feature extraction: runs YOLO26 on processed frames and saves
 detection feature sequences as .npy files for transformer training.
 """
 import argparse
 import logging
-import numpy as np
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
+
+import numpy as np
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 
-def extract_features(data_dir: str, out_dir: str, seq_len: int = 16, device: str = "cpu"):
-    from detection.detector import YOLODetector, DetectionResult
-    from anomaly.transformer_detector import detections_to_feature
-    import cv2
+def extract_features(data_dir: str, out_dir: str, seq_len: int = 16, device: str = "cpu") -> None:
+    import cv2  # noqa: PLC0415
+
+    from anomaly.transformer_detector import detections_to_feature  # noqa: PLC0415
+    from detection.detector import YOLODetector  # noqa: PLC0415
 
     detector = YOLODetector(device=device, enable_tracking=False)
     root = Path(data_dir)
@@ -30,10 +32,8 @@ def extract_features(data_dir: str, out_dir: str, seq_len: int = 16, device: str
         out_label_dir = out / label
         out_label_dir.mkdir(parents=True, exist_ok=True)
 
-        # Group frames by video source
         frames_by_video: dict[str, list[Path]] = defaultdict(list)
         for img_path in sorted(label_dir.glob("*.jpg")):
-            # Filename format: {video_stem}_{frame_idx:06d}.jpg
             parts = img_path.stem.rsplit("_", 1)
             video_key = parts[0] if len(parts) == 2 else img_path.stem
             frames_by_video[video_key].append(img_path)
@@ -53,9 +53,8 @@ def extract_features(data_dir: str, out_dir: str, seq_len: int = 16, device: str
             if len(features) < seq_len:
                 continue
 
-            # Slide a window over the feature sequence
             for i in range(0, len(features) - seq_len + 1, seq_len // 2):
-                window = np.array(features[i:i + seq_len], dtype=np.float32)
+                window = np.array(features[i : i + seq_len], dtype=np.float32)
                 out_path = out_label_dir / f"{video_key}_seq{i:06d}.npy"
                 np.save(str(out_path), window)
 

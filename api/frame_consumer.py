@@ -12,12 +12,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def consume_frames(state: "AppState"):
-    """
-    Long-running async task: polls Kafka for annotated JPEG frames
-    and stores the latest frame per stream in AppState.
-    """
+async def consume_frames(state: "AppState") -> None:
+    """Polls Kafka for annotated JPEG frames, stores latest per stream."""
     from config.settings import get_settings
+
     settings = get_settings()
 
     try:
@@ -26,21 +24,26 @@ async def consume_frames(state: "AppState"):
         logger.warning("confluent-kafka not installed — frame consumer disabled")
         return
 
-    consumer = Consumer({
-        "bootstrap.servers": settings.kafka_bootstrap,
-        "group.id": "api-frame-consumer",
-        "auto.offset.reset": "latest",
-        "enable.auto.commit": True,
-        "fetch.max.bytes": 10_485_760,   # 10MB — frames can be large
-    })
+    consumer = Consumer(
+        {
+            "bootstrap.servers": settings.kafka_bootstrap,
+            "group.id": "api-frame-consumer",
+            "auto.offset.reset": "latest",
+            "enable.auto.commit": True,
+            "fetch.max.bytes": 10_485_760,
+        }
+    )
     consumer.subscribe([settings.kafka_annotated_topic])
     logger.info("Frame consumer subscribed to '%s'", settings.kafka_annotated_topic)
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
+
+    def _poll():
+        return consumer.poll(timeout=0.1)
 
     try:
         while True:
-            msg = await loop.run_in_executor(None, lambda: consumer.poll(timeout=0.1))
+            msg = await loop.run_in_executor(None, _poll)
 
             if msg is None:
                 await asyncio.sleep(0.001)

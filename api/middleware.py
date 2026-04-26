@@ -43,11 +43,17 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             endpoint=endpoint,
             status_code=response.status_code,
         ).inc()
-        REQUEST_LATENCY.labels(method=request.method, endpoint=endpoint).observe(duration_ms / 1000)
+        REQUEST_LATENCY.labels(method=request.method, endpoint=endpoint).observe(
+            duration_ms / 1000
+        )
 
         logger.info(
             "%s %s %d %.1fms [%s]",
-            request.method, endpoint, response.status_code, duration_ms, request_id,
+            request.method,
+            endpoint,
+            response.status_code,
+            duration_ms,
+            request_id,
         )
         response.headers["X-Request-ID"] = request_id
         return response
@@ -78,13 +84,16 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self._counts: dict[str, list[float]] = {}
         self._try_connect_redis()
 
-    def _try_connect_redis(self):
+    def _try_connect_redis(self) -> None:
         try:
             import redis as redis_lib
+
             from config.settings import get_settings
+
             settings = get_settings()
-            self._redis = redis_lib.from_url(settings.redis_url, decode_responses=True,
-                                             socket_connect_timeout=1)
+            self._redis = redis_lib.from_url(
+                settings.redis_url, decode_responses=True, socket_connect_timeout=1
+            )
             self._redis.ping()
             logger.info("Rate limiter using Redis backend")
         except Exception:
@@ -116,21 +125,18 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             key = f"rl:{client_ip}"
             pipe = self._redis.pipeline()
             now = time.time()
-            window_start = now - 60
-            pipe.zremrangebyscore(key, 0, window_start)
+            pipe.zremrangebyscore(key, 0, now - 60)
             pipe.zadd(key, {str(now): now})
             pipe.zcard(key)
             pipe.expire(key, 60)
             results = await loop.run_in_executor(None, pipe.execute)
-            count = results[2]
-            return count <= self.rpm
-        except Exception:  # noqa: BLE001
-            return True  # fail open
+            return results[2] <= self.rpm
+        except Exception:
+            return True
 
     def _check_local(self, client_ip: str) -> bool:
         now = time.monotonic()
-        timestamps = self._counts.get(client_ip, [])
-        timestamps = [t for t in timestamps if now - t < 60.0]
+        timestamps = [t for t in self._counts.get(client_ip, []) if now - t < 60.0]
         if len(timestamps) >= self.rpm:
             return False
         timestamps.append(now)

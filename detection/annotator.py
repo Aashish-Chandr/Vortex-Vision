@@ -1,9 +1,11 @@
 """
 Frame annotation: draws bounding boxes, track IDs, labels, and masks.
 """
+from typing import List
+
 import cv2
 import numpy as np
-from typing import List
+
 from detection.detector import Detection
 
 PALETTE = [
@@ -35,9 +37,7 @@ def annotate_frame(frame: np.ndarray, detections: List[Detection]) -> np.ndarray
             mask_resized = cv2.resize(det.mask[0], (frame.shape[1], frame.shape[0]))
             mask_bool = mask_resized > 0.5
             overlay = annotated.copy()
-            overlay[mask_bool] = (
-                overlay[mask_bool] * 0.5 + np.array(color) * 0.5
-            ).astype(np.uint8)
+            overlay[mask_bool] = (overlay[mask_bool] * 0.5 + np.array(color) * 0.5).astype(np.uint8)
             annotated = overlay
 
     return annotated
