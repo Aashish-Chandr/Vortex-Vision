@@ -48,7 +48,6 @@ async def lifespan(app: FastAPI):
     app.state.vv = AppState()
     await app.state.vv.startup()
 
-    # Start background Kafka → DB event consumer
     from api.event_consumer import consume_events
     from api.frame_consumer import consume_frames
     from monitoring.evidently.drift_worker import run_drift_monitor

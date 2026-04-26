@@ -2,17 +2,18 @@
 Model evaluation: computes AUC-ROC, F1, precision, recall on test set.
 Logs results to MLflow and writes metrics/eval_results.json for DVC.
 """
-import json
 import argparse
+import json
 import logging
-import torch
-import numpy as np
-import mlflow
 from pathlib import Path
-from sklearn.metrics import roc_auc_score, f1_score, classification_report
+
+import mlflow
+import numpy as np
+import torch
+from sklearn.metrics import classification_report, f1_score, roc_auc_score, roc_curve
 from torch.utils.data import DataLoader
 
-from anomaly.autoencoder import ConvAutoencoder, AnomalyScorer
+from anomaly.autoencoder import AnomalyScorer, ConvAutoencoder
 from mlops.dataset import AnomalyDataset
 
 logger = logging.getLogger(__name__)
@@ -23,13 +24,11 @@ def evaluate(model_dir: str, data_dir: str, device: str = "cuda"):
     data_path = Path(data_dir)
     if not data_path.exists():
         logger.error("Test data directory not found: %s", data_dir)
-        logger.error("Run: make prepare-data  to generate training data first.")
         raise FileNotFoundError(f"Test data not found: {data_dir}")
 
     model_path = Path(model_dir) / "autoencoder_best.pt"
     if not model_path.exists():
         logger.error("Model weights not found: %s", model_path)
-        logger.error("Run: make train-ae  or  dvc pull  to get model weights.")
         raise FileNotFoundError(f"Model not found: {model_path}")
 
     model = ConvAutoencoder()
@@ -38,8 +37,6 @@ def evaluate(model_dir: str, data_dir: str, device: str = "cuda"):
 
     dataset = AnomalyDataset(data_dir, mode="labeled")
     if len(dataset) == 0:
-        logger.error("No labeled frames found in %s", data_dir)
-        logger.error("Expected structure: %s/{normal,anomaly}/*.jpg", data_dir)
         raise ValueError(f"Empty dataset at {data_dir}")
 
     loader = DataLoader(dataset, batch_size=1, shuffle=False)
@@ -54,8 +51,6 @@ def evaluate(model_dir: str, data_dir: str, device: str = "cuda"):
     scores = np.array(scores)
     labels = np.array(labels)
 
-    # Find optimal threshold via Youden's J
-    from sklearn.metrics import roc_curve
     fpr, tpr, thresholds = roc_curve(labels, scores)
     j_scores = tpr - fpr
     best_thresh = thresholds[np.argmax(j_scores)]

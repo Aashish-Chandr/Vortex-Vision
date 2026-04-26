@@ -2,10 +2,11 @@
 PyTorch dataset for anomaly detection training.
 Supports UCF-Crime, ShanghaiTech Campus, and custom frame directories.
 """
+from pathlib import Path
+
 import cv2
 import numpy as np
 import torch
-from pathlib import Path
 from torch.utils.data import Dataset
 from torchvision import transforms
 
@@ -13,16 +14,18 @@ from torchvision import transforms
 class AnomalyDataset(Dataset):
     """
     Loads JPEG frames from a directory.
-    mode="normal"  → returns frames only (for autoencoder training)
-    mode="labeled" → returns (frame, label) where label=0 normal, 1 anomaly
+    mode="normal"  -> returns frames only (for autoencoder training)
+    mode="labeled" -> returns (frame, label) where label=0 normal, 1 anomaly
     """
 
-    TRANSFORM = transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.Resize((640, 640)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    ])
+    TRANSFORM = transforms.Compose(
+        [
+            transforms.ToPILImage(),
+            transforms.Resize((640, 640)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
 
     def __init__(self, data_dir: str, mode: str = "normal"):
         self.mode = mode
