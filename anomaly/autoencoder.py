@@ -2,10 +2,11 @@
 Convolutional Autoencoder for frame-level anomaly detection.
 Trained on normal behavior; high reconstruction error = anomaly.
 """
+from typing import Tuple
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-from typing import Tuple
 
 
 class ConvAutoencoder(nn.Module):
