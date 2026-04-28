@@ -6,7 +6,6 @@ Compile with:
   python mlops/kubeflow_pipeline.py
   # Outputs: vortexvision_pipeline.yaml
 """
-import kfp
 from kfp import dsl
 from kfp.dsl import Dataset, Input, Model, Output
 

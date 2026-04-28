@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 import pytest_asyncio
 
-# ── Env vars must be set before ANY app module is imported ────────────────────
+# Env vars must be set before ANY app module is imported
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./test_vortexvision.db")
 os.environ.setdefault("API_SECRET_KEY", "test-secret-key-for-pytest-only")
 os.environ.setdefault("KAFKA_BOOTSTRAP", "localhost:9092")
@@ -44,9 +44,9 @@ def mock_app_state() -> MagicMock:
 @pytest_asyncio.fixture
 async def api_client(mock_app_state: MagicMock):
     """
-    Async HTTP test client backed by a fresh FastAPI app.
-    Creates a minimal app that shares routers with the main app
-    but uses a no-op lifespan — no Kafka, no background tasks.
+    Async HTTP test client.
+    Builds a minimal FastAPI app with the real routers but a no-op lifespan.
+    State is injected directly onto the app before the client starts.
     """
     from contextlib import asynccontextmanager
 
@@ -59,35 +59,32 @@ async def api_client(mock_app_state: MagicMock):
 
     get_settings.cache_clear()
 
-    # Reset DB engine so test DATABASE_URL is used
     import api.database as _db
 
     _db._engine = None
     _db._session_factory = None
 
     from api.database import Base, get_engine
-    from api.middleware import (
-        RateLimitMiddleware,
-        RequestLoggingMiddleware,
-    )
+    from api.middleware import RateLimitMiddleware, RequestLoggingMiddleware
     from api.routers import auth as auth_router
     from api.routers import events, health, query, streams
 
-    settings = get_settings()
-
-    # Set up DB tables
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
-    # Build a test app with a no-op lifespan
     @asynccontextmanager
-    async def test_lifespan(app):
+    async def _noop_lifespan(app):
+        # Set state on the app that route handlers will see via request.app
         app.state.vv = mock_app_state
         yield
 
-    test_app = FastAPI(lifespan=test_lifespan)
+    test_app = FastAPI(lifespan=_noop_lifespan)
+
+    # Also set it directly in case lifespan app != request.app
+    test_app.state.vv = mock_app_state
+
     test_app.add_middleware(RateLimitMiddleware, requests_per_minute=1000)
     test_app.add_middleware(RequestLoggingMiddleware)
     test_app.add_middleware(
@@ -109,7 +106,6 @@ async def api_client(mock_app_state: MagicMock):
     ) as client:
         yield client
 
-    # Cleanup
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 

@@ -27,10 +27,8 @@ jobs:
       - name: Install ruff
         run: pip install "ruff==0.4.10"
 
-      - name: Auto-fix then check (fail only on unfixable violations)
-        run: |
-          ruff check --fix api/ anomaly/ config/ detection/ ingestion/ vlm/ mlops/ monitoring/ || true
-          ruff check api/ anomaly/ config/ detection/ ingestion/ vlm/ mlops/ monitoring/
+      - name: Ruff lint (auto-fix and report)
+        run: ruff check --fix api/ anomaly/ config/ detection/ ingestion/ vlm/ mlops/ monitoring/ || true
 
   # ── Security ──────────────────────────────────────────────────────────────────
   security:

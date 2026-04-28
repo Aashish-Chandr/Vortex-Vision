@@ -34,8 +34,8 @@ async def natural_language_query(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    state = request.app.state.vv
-    if state.nl_engine is None:
+    state = getattr(request.app.state, "vv", None)
+    if state is None or state.nl_engine is None:
         raise HTTPException(
             503, "VLM query engine not ready. Check VLM_MODE and VLM_API_BASE settings."
         )
