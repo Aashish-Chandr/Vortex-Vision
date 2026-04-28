@@ -6,7 +6,6 @@ Handles SIGTERM gracefully.
 import json
 import logging
 import signal
-import time
 import uuid
 
 import cv2

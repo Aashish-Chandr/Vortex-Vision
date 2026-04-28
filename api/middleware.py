@@ -64,6 +64,12 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
         try:
             return await call_next(request)
         except Exception as exc:
+            # Let FastAPI/Starlette handle HTTPException — only catch truly unhandled errors
+            from fastapi import HTTPException as FastAPIHTTPException
+            from starlette.exceptions import HTTPException as StarletteHTTPException
+
+            if isinstance(exc, (FastAPIHTTPException, StarletteHTTPException)):
+                raise
             logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
             return JSONResponse(
                 status_code=500,
