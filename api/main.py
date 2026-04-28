@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app
 
 from api.database import init_db
-from api.middleware import ErrorHandlingMiddleware, RateLimitMiddleware, RequestLoggingMiddleware
+from api.middleware import RateLimitMiddleware, RequestLoggingMiddleware
 from api.routers import events, health, query, streams, auth as auth_router
 from api.state import AppState
 from api.tracing import setup_tracing
@@ -79,7 +79,6 @@ app = FastAPI(
 )
 
 # ── Middleware (order matters: outermost first) ───────────────────────────────
-app.add_middleware(ErrorHandlingMiddleware)
 app.add_middleware(RateLimitMiddleware, requests_per_minute=settings.rate_limit_per_minute)
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(

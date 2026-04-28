@@ -1,5 +1,6 @@
 """
-FastAPI middleware: request logging, rate limiting, error handling, metrics.
+FastAPI middleware: request logging, rate limiting, metrics.
+Note: HTTPException handling is left to FastAPI's built-in exception handlers.
 """
 import asyncio
 import logging
@@ -59,24 +60,6 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         return response
 
 
-class ErrorHandlingMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        try:
-            return await call_next(request)
-        except Exception as exc:
-            # Let FastAPI/Starlette handle HTTPException — only catch truly unhandled errors
-            from fastapi import HTTPException as FastAPIHTTPException
-            from starlette.exceptions import HTTPException as StarletteHTTPException
-
-            if isinstance(exc, (FastAPIHTTPException, StarletteHTTPException)):
-                raise
-            logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
-            return JSONResponse(
-                status_code=500,
-                content={"detail": "Internal server error", "type": type(exc).__name__},
-            )
-
-
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """
     Sliding window rate limiter.
@@ -112,10 +95,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         client_ip = request.client.host if request.client else "unknown"
 
-        if self._redis:
-            allowed = await self._check_redis(client_ip)
-        else:
-            allowed = self._check_local(client_ip)
+        allowed = await self._check_redis(client_ip) if self._redis else self._check_local(client_ip)
 
         if not allowed:
             return JSONResponse(

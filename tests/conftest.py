@@ -67,7 +67,6 @@ async def api_client(mock_app_state: MagicMock):
 
     from api.database import Base, get_engine
     from api.middleware import (
-        ErrorHandlingMiddleware,
         RateLimitMiddleware,
         RequestLoggingMiddleware,
     )
@@ -89,7 +88,6 @@ async def api_client(mock_app_state: MagicMock):
         yield
 
     test_app = FastAPI(lifespan=test_lifespan)
-    test_app.add_middleware(ErrorHandlingMiddleware)
     test_app.add_middleware(RateLimitMiddleware, requests_per_minute=1000)
     test_app.add_middleware(RequestLoggingMiddleware)
     test_app.add_middleware(
