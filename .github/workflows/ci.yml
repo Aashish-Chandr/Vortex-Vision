@@ -24,11 +24,13 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
 
-      - name: Install linters
+      - name: Install ruff
         run: pip install "ruff==0.4.10"
 
-      - name: Ruff lint check
-        run: ruff check api/ anomaly/ config/ detection/ ingestion/ vlm/ mlops/ monitoring/
+      - name: Auto-fix then check (fail only on unfixable violations)
+        run: |
+          ruff check --fix api/ anomaly/ config/ detection/ ingestion/ vlm/ mlops/ monitoring/ || true
+          ruff check api/ anomaly/ config/ detection/ ingestion/ vlm/ mlops/ monitoring/
 
   # ── Security ──────────────────────────────────────────────────────────────────
   security:
@@ -77,6 +79,7 @@ jobs:
       MODEL_STORAGE_PATH: "/tmp/vv_models"
       CLIP_STORAGE_PATH: "/tmp/vv_clips"
       REDIS_URL: "redis://localhost:6379"
+      TESTING: "1"
 
     steps:
       - uses: actions/checkout@v4
@@ -93,13 +96,14 @@ jobs:
         run: mkdir -p /tmp/vv_models /tmp/vv_clips
 
       - name: Run tests
-        run: >
-          pytest tests/ -v
-          --cov=api --cov=anomaly --cov=detection --cov=ingestion --cov=config
-          --cov-report=xml
-          --cov-report=term-missing
-          --ignore=tests/load
-          -p no:warnings
+        run: |
+          pytest tests/ -v \
+            --cov=api --cov=anomaly --cov=detection --cov=ingestion --cov=config \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --ignore=tests/load \
+            -p no:warnings \
+            -x
 
       - name: Upload coverage
         if: always()

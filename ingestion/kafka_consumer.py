@@ -1,10 +1,12 @@
 """
 Kafka consumer: reads encoded frames and yields numpy arrays for downstream processing.
 """
-import cv2
-import numpy as np
+import argparse
 import logging
 from typing import Generator, Tuple
+
+import cv2
+import numpy as np
 from confluent_kafka import Consumer, KafkaError
 
 logger = logging.getLogger(__name__)
@@ -55,9 +57,8 @@ class FrameConsumer:
     def stop(self):
         self._running = False
 
+
 if __name__ == "__main__":
-    """Standalone frame consumer — prints frame shapes for debugging."""
-    import argparse
     logging.basicConfig(level=logging.INFO)
 
     parser = argparse.ArgumentParser(description="Debug Kafka frame consumer")

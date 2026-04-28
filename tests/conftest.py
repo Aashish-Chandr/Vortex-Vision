@@ -2,23 +2,22 @@
 Shared pytest fixtures for VortexVision tests.
 """
 import os
-from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock
 
 import numpy as np
 import pytest
 import pytest_asyncio
 
-# Set env vars before ANY app imports — lru_cache must pick these up
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test_vortexvision.db"
-os.environ["API_SECRET_KEY"] = "test-secret-key-for-pytest-only"
-os.environ["KAFKA_BOOTSTRAP"] = "localhost:9092"
-os.environ["YOLO_DEVICE"] = "cpu"
-os.environ["VLM_MODE"] = "api"
-os.environ["MODEL_STORAGE_PATH"] = "/tmp/vortexvision_test_models"
-os.environ["CLIP_STORAGE_PATH"] = "/tmp/vortexvision_test_clips"
-os.environ["REDIS_URL"] = "redis://localhost:6379"
-os.environ["TESTING"] = "1"
+# ── Env vars must be set before ANY app module is imported ────────────────────
+os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./test_vortexvision.db")
+os.environ.setdefault("API_SECRET_KEY", "test-secret-key-for-pytest-only")
+os.environ.setdefault("KAFKA_BOOTSTRAP", "localhost:9092")
+os.environ.setdefault("YOLO_DEVICE", "cpu")
+os.environ.setdefault("VLM_MODE", "api")
+os.environ.setdefault("MODEL_STORAGE_PATH", "/tmp/vortexvision_test_models")
+os.environ.setdefault("CLIP_STORAGE_PATH", "/tmp/vortexvision_test_clips")
+os.environ.setdefault("REDIS_URL", "redis://localhost:6379")
+os.environ.setdefault("TESTING", "1")
 
 
 @pytest.fixture
@@ -45,50 +44,74 @@ def mock_app_state() -> MagicMock:
 @pytest_asyncio.fixture
 async def api_client(mock_app_state: MagicMock):
     """
-    Async test client.
-    - Resets DB engine so test DATABASE_URL is used.
-    - Injects mock state before lifespan runs.
-    - TESTING=1 env var tells lifespan to skip background tasks.
+    Async HTTP test client backed by a fresh FastAPI app.
+    Creates a minimal app that shares routers with the main app
+    but uses a no-op lifespan — no Kafka, no background tasks.
     """
+    from contextlib import asynccontextmanager
+
+    from fastapi import FastAPI
+    from fastapi.middleware.cors import CORSMiddleware
+    from httpx import ASGITransport, AsyncClient
+    from prometheus_client import make_asgi_app
+
     from config.settings import get_settings
 
     get_settings.cache_clear()
 
-    # Reset lazy DB singletons so they pick up the test DATABASE_URL
+    # Reset DB engine so test DATABASE_URL is used
     import api.database as _db
 
     _db._engine = None
     _db._session_factory = None
 
     from api.database import Base, get_engine
+    from api.middleware import (
+        ErrorHandlingMiddleware,
+        RateLimitMiddleware,
+        RequestLoggingMiddleware,
+    )
+    from api.routers import auth as auth_router
+    from api.routers import events, health, query, streams
 
+    settings = get_settings()
+
+    # Set up DB tables
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
-    # Patch the app's lifespan to use a no-op that just injects state
-    from api.main import app
-
+    # Build a test app with a no-op lifespan
     @asynccontextmanager
-    async def _test_lifespan(_app):
-        _app.state.vv = mock_app_state
+    async def test_lifespan(app):
+        app.state.vv = mock_app_state
         yield
 
-    original_router = app.router.lifespan_context
-    app.router.lifespan_context = _test_lifespan
-
-    from httpx import ASGITransport, AsyncClient
+    test_app = FastAPI(lifespan=test_lifespan)
+    test_app.add_middleware(ErrorHandlingMiddleware)
+    test_app.add_middleware(RateLimitMiddleware, requests_per_minute=1000)
+    test_app.add_middleware(RequestLoggingMiddleware)
+    test_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    test_app.mount("/metrics", make_asgi_app())
+    test_app.include_router(health.router, prefix="/health", tags=["health"])
+    test_app.include_router(auth_router.router, prefix="/auth", tags=["auth"])
+    test_app.include_router(streams.router, prefix="/streams", tags=["streams"])
+    test_app.include_router(events.router, prefix="/events", tags=["events"])
+    test_app.include_router(query.router, prefix="/query", tags=["query"])
 
     async with AsyncClient(
-        transport=ASGITransport(app=app),
+        transport=ASGITransport(app=test_app),
         base_url="http://test",
     ) as client:
         yield client
 
-    # Restore original lifespan
-    app.router.lifespan_context = original_router
-
+    # Cleanup
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 

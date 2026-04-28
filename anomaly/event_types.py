@@ -2,8 +2,8 @@
 Anomaly event taxonomy and alert payload definitions.
 """
 from dataclasses import dataclass, field
-from typing import Optional
 from enum import Enum
+from typing import Optional
 
 
 class AnomalyType(str, Enum):
@@ -25,6 +25,6 @@ class AnomalyEvent:
     confidence: float
     autoencoder_score: float
     transformer_score: float
-    clip_path: Optional[str] = None      # path to saved video clip
-    description: Optional[str] = None   # VLM-generated description
+    clip_path: Optional[str] = None
+    description: Optional[str] = None
     metadata: dict = field(default_factory=dict)
