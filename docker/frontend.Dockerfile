@@ -3,13 +3,17 @@ FROM python:3.11-slim
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1 libglib2.0-0 && \
+    libgl1 libglib2.0-0 curl && \
     rm -rf /var/lib/apt/lists/*
 
 COPY requirements-frontend.txt .
 RUN pip install --no-cache-dir -r requirements-frontend.txt
 
+# Copy frontend package
 COPY frontend/ ./frontend/
+
+# Make frontend importable as a package
+RUN touch frontend/__init__.py
 
 EXPOSE 8501
 
